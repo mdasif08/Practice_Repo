@@ -194,7 +194,7 @@ def fetch_github_commits():
         # GitHub API call
         url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/commits"
         headers = {
-            'Authorization': f'Bearer {os.getenv("GITHUB_TOKEN", "your_github_token_here")}',
+            'Authorization': f'Bearer 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',
             'Accept': 'application/vnd.github.v3+json'
         }
         

@@ -116,7 +116,7 @@ def main():
     """Main function to fetch and store real GitHub commits."""
     
     # GitHub configuration
-    GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "your_github_token_here")
+    GITHUB_TOKEN = "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"
     
     # List of repositories to fetch commits from
     repositories = [
