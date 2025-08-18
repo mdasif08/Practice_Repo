@@ -38,22 +38,22 @@ function App() {
     }
   };
 
-  const handleGitHubFetch = async () => {
+  const handleGitHub = async () => {
     setLoading(true);
     setError('');
     setSuccess('');
     
     try {
-      console.log('Fetching GitHub repositories...');
+      console.log('Fetching repositories from GitHub...');
       const response = await axios.get('https://api.github.com/user/repos', {
         headers: {
-          'Authorization': `Bearer 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`,
+          'Authorization': `Bearer ${process.env.REACT_APP_GITHUB_TOKEN || 'your_github_token_here'}`,
           'Accept': 'application/vnd.github.v3+json'
         }
       });
       
       setRepositories(response.data);
-      setSuccess(`✅ Successfully fetched ${response.data.length} repositories from GitHub API`);
+      setSuccess(`✅ Successfully fetched ${response.data.length} repositories from GitHub`);
     } catch (err) {
       console.error('Error fetching repositories:', err);
       setError('❌ Failed to fetch repositories. Please check your GitHub token.');
@@ -142,7 +142,7 @@ function App() {
           </button>
           <button 
             className={`action-button secondary ${loading ? 'loading' : ''}`}
-            onClick={handleGitHubFetch}
+            onClick={handleGitHub}
             disabled={loading}
           >
             {loading ? '⏳ Loading...' : '🐙 GitHub'}

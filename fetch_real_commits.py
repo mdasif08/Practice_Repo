@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 import time
+import os
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -115,7 +116,7 @@ def main():
     """Main function to fetch and store real GitHub commits."""
     
     # GitHub configuration
-    GITHUB_TOKEN = "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"
+    GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "your_github_token_here")
     
     # List of repositories to fetch commits from
     repositories = [
