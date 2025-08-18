@@ -47,7 +47,7 @@ function App() {
       console.log('Fetching repositories from GitHub...');
       const response = await axios.get('https://api.github.com/user/repos', {
         headers: {
-          'Authorization': `Bearer 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`,
+          'Authorization': `Bearer ${process.env.REACT_APP_GITHUB_TOKEN || 'your_github_token_here'}`,
           'Accept': 'application/vnd.github.v3+json'
         }
       });

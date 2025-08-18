@@ -9,11 +9,11 @@ import json
 from pathlib import Path
 from datetime import datetime
 import time
-import os
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 from services.database_service import DatabaseService
+from config.env_manager import env_manager
 
 def fetch_github_commits(repo_owner, repo_name, token, max_commits=10):
     """Fetch real commits from a GitHub repository."""
@@ -115,8 +115,10 @@ def save_commits_to_database(commits, db_service):
 def main():
     """Main function to fetch and store real GitHub commits."""
     
-    # GitHub configuration
-    GITHUB_TOKEN = "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"
+    # Validate configuration
+    if not env_manager.validate_config():
+        print("❌ Configuration validation failed. Please check your .env file.")
+        sys.exit(1)
     
     # List of repositories to fetch commits from
     repositories = [
@@ -142,7 +144,7 @@ def main():
             commits_data = fetch_github_commits(
                 repo['owner'], 
                 repo['name'], 
-                GITHUB_TOKEN, 
+                env_manager.GITHUB_TOKEN, 
                 max_commits=5  # Limit to 5 commits per repo
             )
             

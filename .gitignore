@@ -73,3 +73,6 @@ backup/
 .env
 .env.local
 .env.*.local
+.env
+*.env
+frontend/.env

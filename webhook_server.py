@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from services.github_webhook_handler import GitHubWebhookHandler
 from services.database_service import DatabaseService
 from utils.error_handler import DataStorageError
+from config.env_manager import env_manager
 
 # Setup logging
 logging.basicConfig(
@@ -34,6 +35,7 @@ CORS(app)  # Enable CORS for all routes
 # Initialize services
 db_service = None
 webhook_handler = None
+env_manager = None
 
 def initialize_services():
     """Initialize database and webhook handler services."""
@@ -42,7 +44,7 @@ def initialize_services():
     try:
         db_service = DatabaseService()
         webhook_handler = GitHubWebhookHandler(
-            webhook_secret=os.getenv('GITHUB_WEBHOOK_SECRET'),
+            webhook_secret=env_manager.GITHUB_WEBHOOK_SECRET,
             database_service=db_service
         )
         logger.info("Services initialized successfully")
@@ -194,7 +196,7 @@ def fetch_github_commits():
         # GitHub API call
         url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/commits"
         headers = {
-            'Authorization': f'Bearer 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',
+            'Authorization': f'Bearer {env_manager.GITHUB_TOKEN}',
             'Accept': 'application/vnd.github.v3+json'
         }
         
