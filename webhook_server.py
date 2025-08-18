@@ -4,15 +4,14 @@ GitHub Webhook Server for CraftNudge Git Commit Logger.
 Handles incoming webhooks from GitHub and triggers commit processing.
 """
 
-import json
-import hmac
-import hashlib
+import json, hmac, hashlib
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from datetime import datetime
-import logging
-import os
+import logging, os
 from pathlib import Path
 import sys
+import requests
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -30,6 +29,7 @@ logger = logging.getLogger('WebhookServer')
 
 # Initialize Flask app
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # Initialize services
 db_service = None
@@ -172,6 +172,112 @@ def pull_latest_commits():
         return jsonify({
             'status': 'error',
             'message': f'Error pulling commits: {str(e)}'
+        }), 500
+
+@app.route('/test', methods=['GET'])
+def test_endpoint():
+    """Test endpoint to verify route registration."""
+    return jsonify({
+        'status': 'success',
+        'message': 'Test endpoint working'
+    }), 200
+
+@app.route('/fetch-github-commits', methods=['POST'])
+def fetch_github_commits():
+    """Fetch real commits from GitHub and store in database."""
+    try:
+        data = request.get_json()
+        repo_owner = data.get('repo_owner', 'mdasif08')
+        repo_name = data.get('repo_name', 'Practice_Repo')
+        max_commits = data.get('max_commits', 5)
+        
+        # GitHub API call
+        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/commits"
+        headers = {
+            'Authorization': f'Bearer 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',
+            'Accept': 'application/vnd.github.v3+json'
+        }
+        
+        response = requests.get(url, headers=headers, params={'per_page': max_commits})
+        response.raise_for_status()
+        
+        commits_data = response.json()
+        saved_count = 0
+        
+        for commit_data in commits_data:
+            try:
+                # Extract commit information
+                commit_hash = commit_data['sha']
+                author_info = commit_data['commit']['author']
+                commit_info = commit_data['commit']
+                
+                # Get author name (prefer GitHub username if available)
+                author_name = commit_data['author']['login'] if commit_data.get('author') else author_info['name']
+                
+                # Create commit object
+                commit_obj = {
+                    'commit_hash': commit_hash,
+                    'author': author_name,
+                    'author_email': author_info['email'],
+                    'message': commit_info['message'],
+                    'timestamp_commit': datetime.fromisoformat(author_info['date'].replace('Z', '+00:00')),
+                    'branch': 'main',
+                    'repository_name': repo_name,
+                    'files_changed': [],
+                    'lines_added': 0,
+                    'lines_deleted': 0
+                }
+                
+                # Check if commit already exists
+                existing_commit = db_service.get_commit_by_hash(commit_hash)
+                if not existing_commit:
+                    db_service.save_commit(commit_obj)
+                    saved_count += 1
+                    
+            except Exception as e:
+                logger.error(f"Error processing commit {commit_data.get('sha', 'unknown')}: {str(e)}")
+                continue
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Fetched {len(commits_data)} commits, saved {saved_count} new commits',
+            'total_fetched': len(commits_data),
+            'saved_count': saved_count
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching GitHub commits: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error fetching commits: {str(e)}'
+        }), 500
+
+@app.route('/recent-commits', methods=['GET'])
+def get_recent_commits():
+    """Get recent commits for the frontend."""
+    try:
+        # Get query parameters
+        author_filter = request.args.get('author', None)
+        limit = int(request.args.get('limit', 20))
+        
+        # Get recent commits from database
+        commits = db_service.get_recent_commits(limit=limit)
+        
+        # Filter by author if specified
+        if author_filter:
+            commits = [commit for commit in commits if commit['author'] == author_filter]
+        
+        return jsonify({
+            'status': 'success',
+            'commits': commits,
+            'filter': author_filter if author_filter else 'all',
+            'total_count': len(commits)
+        }), 200
+    except Exception as e:
+        logger.error(f"Error getting recent commits: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error getting commits: {str(e)}'
         }), 500
 
 @app.route('/', methods=['GET'])

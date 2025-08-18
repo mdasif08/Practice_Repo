@@ -2,32 +2,20 @@
 gitpython>=3.1.0
 click>=8.0.0
 rich>=13.0.0
-
-# Database
 psycopg2-binary>=2.9.0
-
-# Web framework for webhook server
 flask>=2.3.0
-
-# HTTP requests for Ollama API
+flask-cors>=4.0.0
 requests>=2.31.0
-
-# Scheduling for continuous monitor
 schedule>=1.2.0
 
-# Data processing
+# Data processing (optional - can be excluded for Python 3.13+)
 pandas>=2.2.0
 numpy>=1.26.0
 
 # Development and testing
-pytest>=7.0.0
-pytest-cov>=4.0.0
-pytest-mock>=3.10.0
-
-# Code quality
-black>=23.0.0
-flake8>=6.0.0
-mypy>=1.0.0
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
 
 # Documentation
 sphinx>=7.0.0
