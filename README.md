@@ -1,348 +1,291 @@
-# CraftNudge - Git Commit Logger with Continuous Monitoring
+# 🚀 Beginner-Friendly Microservices Project
 
-A comprehensive Git commit tracking and analysis system that automatically monitors your repositories, stores commit data in PostgreSQL, and provides AI-powered insights using Code Llama and Ollama.
+A simple, easy-to-understand microservices architecture for Git commit tracking and analysis.
 
-## 🚀 Features
+## 🎯 What This Project Does
 
-### Core Functionality
-- **Git Commit Tracking**: Automatically logs every Git commit with metadata
-- **PostgreSQL Storage**: Robust database storage for commit history and analysis
-- **GitHub Webhook Integration**: Real-time commit detection via GitHub webhooks
-- **AI-Powered Analysis**: Code quality and commit pattern analysis using Code Llama and Ollama
-- **Continuous Monitoring**: Background service that processes commits automatically
+This project tracks Git commits from GitHub repositories and provides AI-powered analysis. It's built using a **microservices architecture** - meaning each part of the system is a separate, focused service.
 
-### AI Agent Integration
-- **Code Llama**: Analyzes code changes for quality, security, and best practices
-- **Ollama**: Provides insights on commit patterns and development habits
-- **Automated Processing**: Agents run automatically on new commits
-- **Configurable Models**: Support for different AI models and configurations
+## 🏗️ Architecture Overview
 
-### Monitoring & Management
-- **Webhook Server**: Flask-based server for handling GitHub webhooks
-- **Continuous Monitor**: Background service for automatic processing
-- **CLI Management**: Comprehensive command-line interface for system management
-- **Health Monitoring**: Real-time system health and status checking
-- **Statistics & Analytics**: Detailed metrics and reporting
-
-## 📋 Prerequisites
-
-### Required Software
-- **Python 3.8+**: Core runtime environment
-- **PostgreSQL**: Database server (pgAdmin for management)
-- **Git**: Version control system
-- **Ollama**: Local AI model server
-
-### Database Configuration
-- **Database Name**: `newDB`
-- **Username**: `postgres`
-- **Password**: `root`
-- **Host**: `localhost`
-- **Port**: `5432`
-
-### AI Models
-- **Code Llama**: `codellama:7b` (for code analysis)
-- **Ollama**: `llama2:7b` (for commit analysis)
-
-## 🛠️ Installation
-
-### Quick Setup
-```bash
-# Clone the repository
-git clone <repository-url>
-cd MicroService
-
-# Run the comprehensive setup script
-python setup_continuous_monitor.py
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Commit Tracker │    │ Repo Manager    │    │ Webhook Handler │    │  AI Analyzer    │
+│   (Port 8001)   │    │  (Port 8002)    │    │   (Port 8003)   │    │   (Port 8004)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │                       │
+         └───────────────────────┼───────────────────────┼───────────────────────┘
+                                 │                       │
+                    ┌─────────────────┐    ┌─────────────────┐
+                    │   PostgreSQL    │    │     Ollama      │
+                    │   (Port 5432)   │    │   (Port 11434)  │
+                    └─────────────────┘    └─────────────────┘
 ```
 
-### Manual Installation
-```bash
-# Install dependencies
-pip install -r requirements.txt
+## 🎯 Services Explained (Simple!)
 
-# For Python 3.13+ compatibility issues, use:
-pip install -r requirements-basic.txt
+### 1. **Commit Tracker** (Port 8001)
+- **What it does**: Saves and retrieves commit information
+- **Like**: A librarian who keeps track of all books (commits)
 
-# Initialize the system
-python cli/manage_monitor.py setup
-```
+### 2. **Repository Manager** (Port 8002)
+- **What it does**: Manages repository information and statistics
+- **Like**: A manager who organizes different sections of the library
 
-## 🚀 Getting Started
+### 3. **Webhook Handler** (Port 8003)
+- **What it does**: Receives notifications when code is pushed to GitHub
+- **Like**: A receptionist who gets phone calls about new deliveries
 
-### 1. Start the Monitoring System
+### 4. **AI Analyzer** (Port 8004)
+- **What it does**: Uses AI to analyze commits and code changes
+- **Like**: A smart assistant who reads and reviews the books
 
-**Option A: Using startup scripts**
-```bash
-./start_monitor.sh
-```
+## 🚀 Quick Start
 
-**Option B: Using CLI**
-```bash
-# Start continuous monitor as daemon
-python cli/manage_monitor.py start --daemon
-
-# Start webhook server
-python webhook_server.py --host 0.0.0.0 --port 5000
-```
-
-### 2. Configure GitHub Webhook
-
-1. Go to your GitHub repository
-2. Navigate to **Settings > Webhooks**
-3. Click **Add webhook**
-4. Configure:
-   - **Payload URL**: `http://your-server:5000/webhook/github`
-   - **Content type**: `application/json`
-   - **Events**: Select "Just the push event"
-   - **Secret**: Use the secret from your `.env` file
-
-### 3. Verify System Status
+### Option 1: Using Docker (Recommended)
 
 ```bash
-# Check overall status
-python cli/manage_monitor.py status
+# 1. Start all services
+docker-compose up -d
 
-# Detailed health check
-python cli/manage_monitor.py health
+# 2. Check if everything is running
+docker-compose ps
 
-# View recent commits
-python cli/manage_monitor.py recent-commits
+# 3. View logs
+docker-compose logs -f
 ```
 
-## 📊 System Architecture
+### Option 2: Running Services Individually
 
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   GitHub Repo   │───▶│  Webhook Server  │───▶│  PostgreSQL DB  │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │                        │
-                                ▼                        ▼
-                       ┌──────────────────┐    ┌─────────────────┐
-                       │ Continuous       │    │ AI Agents       │
-                       │ Monitor          │    │ (Code Llama &   │
-                       │                  │    │  Ollama)        │
-                       └──────────────────┘    └─────────────────┘
-```
-
-## 🎯 Usage Examples
-
-### Basic Commit Tracking
 ```bash
-# Track latest commit
-python cli/track_commit.py
+# 1. Install dependencies for each service
+cd services/commit-tracker && pip install -r requirements.txt
+cd services/repo-manager && pip install -r requirements.txt
+cd services/webhook-handler && pip install -r requirements.txt
+cd services/ai-analyzer && pip install -r requirements.txt
 
-# Track all commits
-python cli/track_commit.py --all
-
-# Track specific range
-python cli/track_commit.py --range HEAD~5..HEAD
+# 2. Start each service (in separate terminals)
+cd services/commit-tracker && python app.py
+cd services/repo-manager && python app.py
+cd services/webhook-handler && python app.py
+cd services/ai-analyzer && python app.py
 ```
 
-### View Commit History
+## 🔑 GitHub Token Setup (Required for Real Commits)
+
+**Important**: To fetch real commits from GitHub (instead of demo data), you need to configure a GitHub Personal Access Token.
+
+### Quick Setup (Recommended)
+
 ```bash
-# View recent commits
-python cli/view_commits.py
-
-# Filter by author
-python cli/view_commits.py --author "John Doe"
-
-# Export as JSON
-python cli/view_commits.py --json
+# Run the automated setup script
+python setup-github-token.py
 ```
 
-### System Management
+### Manual Setup
+
+1. **Get a GitHub Token**:
+   - Go to [GitHub Settings > Tokens](https://github.com/settings/tokens)
+   - Click "Generate new token (classic)"
+   - Select scopes: `repo` and `read:user`
+   - Copy the generated token
+
+2. **Create Environment File**:
+   ```bash
+   # Copy the example file
+   cp env.example .env
+   
+   # Edit .env and replace 'your_github_token_here' with your actual token
+   GITHUB_TOKEN=ghp_your_actual_token_here
+   ```
+
+3. **Test Configuration**:
+   ```bash
+   # Test GitHub connection
+   curl http://localhost:8000/github/test
+   ```
+
+### What Happens Without a Token?
+
+- The system will show an error message asking for a GitHub token
+- No demo/static data will be displayed
+- You'll need to configure the token to see real commits
+
+## 🧪 Testing the Services
+
+### 1. Check Service Health
 ```bash
-# Start monitoring
-python cli/manage_monitor.py start
+# Commit Tracker
+curl http://localhost:8001/health
 
-# Check status
-python cli/manage_monitor.py status
+# Repository Manager
+curl http://localhost:8002/health
 
-# Run single cycle
-python cli/manage_monitor.py run-once
+# Webhook Handler
+curl http://localhost:8003/health
 
-# Stop monitoring
-python cli/manage_monitor.py stop
+# AI Analyzer
+curl http://localhost:8004/health
 ```
 
-### Webhook Server Management
+### 2. Add a Test Commit
 ```bash
-# Start webhook server
-python webhook_server.py --host 0.0.0.0 --port 5000
-
-# Check webhook status
-python cli/manage_monitor.py webhook-status
-
-# Test webhook endpoint
-curl http://localhost:5000/health
+curl -X POST http://localhost:8001/commits \
+  -H "Content-Type: application/json" \
+  -d '{
+    "commit_hash": "abc123",
+    "author": "john_doe",
+    "message": "Fix login bug",
+    "repository_name": "my-app"
+  }'
 ```
+
+### 3. Get All Commits
+```bash
+curl http://localhost:8001/commits
+```
+
+### 4. Analyze a Commit with AI
+```bash
+curl http://localhost:8004/analyze/commit/abc123
+```
+
+## 📊 API Endpoints
+
+### Commit Tracker (Port 8001)
+- `GET /health` - Service health check
+- `GET /commits` - Get all commits
+- `GET /commits/{hash}` - Get specific commit
+- `POST /commits` - Add new commit
+- `GET /commits/statistics` - Get commit statistics
+
+### Repository Manager (Port 8002)
+- `GET /health` - Service health check
+- `GET /repos` - Get all repositories
+- `GET /repos/{name}` - Get specific repository
+- `GET /repos/statistics` - Get repository statistics
+
+### Webhook Handler (Port 8003)
+- `GET /health` - Service health check
+- `POST /webhook/github` - Handle GitHub webhooks
+- `POST /fetch-commits` - Fetch commits from GitHub
+- `GET /webhook/events` - Get webhook events
+
+### AI Analyzer (Port 8004)
+- `GET /health` - Service health check
+- `GET /analyze/commit/{hash}` - Analyze commit with AI
+- `POST /analyze/code` - Analyze code changes
+- `GET /status` - Get AI service status
 
 ## 🔧 Configuration
 
 ### Environment Variables
-Create a `.env` file with your configuration:
+Create a `.env` file in the root directory:
 
 ```env
-# Database Configuration
+# Database
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=newDB
 DB_USER=postgres
 DB_PASSWORD=root
 
-# GitHub Webhook Configuration
-GITHUB_WEBHOOK_SECRET=your_webhook_secret_here
+# GitHub
+GITHUB_TOKEN=your_github_token_here
 
-# Ollama Configuration
+# AI Models
 OLLAMA_BASE_URL=http://localhost:11434
 CODE_LLAMA_MODEL=codellama:7b
 OLLAMA_MODEL=llama2:7b
 
-# Monitor Configuration
-CHECK_INTERVAL=30
-ENABLE_AGENTS=true
-ENABLE_WEBHOOKS=true
-
-# Webhook Server Configuration
-WEBHOOK_HOST=0.0.0.0
-WEBHOOK_PORT=5000
+# Service Ports
+COMMIT_SERVICE_PORT=8001
+REPO_SERVICE_PORT=8002
+WEBHOOK_SERVICE_PORT=8003
+AI_SERVICE_PORT=8004
 ```
 
-### AI Model Configuration
-The system automatically configures AI agents with optimized prompts:
-
-- **Code Llama**: Focuses on code quality, security, and best practices
-- **Ollama**: Analyzes commit patterns and development habits
-
-## 📈 Monitoring & Analytics
-
-### Database Statistics
-```bash
-# Get system statistics
-python cli/manage_monitor.py health
-```
-
-The system tracks:
-- Total commits processed
-- Unique authors
-- Agent interactions
-- Webhook events
-- System health metrics
-
-### AI Analysis Results
-Each commit is automatically analyzed for:
-- **Code Quality**: Best practices, potential issues
-- **Security**: Vulnerabilities, security concerns
-- **Performance**: Optimization opportunities
-- **Patterns**: Development habits and trends
-
-## 🛠️ Troubleshooting
-
-### Common Issues
-
-**PostgreSQL Connection Failed**
-```bash
-# Check PostgreSQL status
-sudo systemctl status postgresql
-
-# Verify connection
-psql -h localhost -U postgres -d newDB
-```
-
-**Ollama Not Running**
-```bash
-# Start Ollama
-ollama serve
-
-# Check available models
-ollama list
-```
-
-**Webhook Server Issues**
-```bash
-# Check if port is accessible
-netstat -tlnp | grep 5000
-
-# Test webhook endpoint
-curl http://localhost:5000/health
-```
-
-**Monitor Not Processing**
-```bash
-# Check logs
-tail -f continuous_monitor.log
-
-# Run manual cycle
-python cli/manage_monitor.py run-once
-```
-
-### Log Files
-- `continuous_monitor.log`: Main monitoring service logs
-- `webhook_server.log`: Webhook server logs (if configured)
-
-## 🔄 Continuous Integration
-
-### GitHub Actions Integration
-The system can be integrated with GitHub Actions for automated deployment:
-
-```yaml
-name: Deploy CraftNudge Monitor
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Deploy to server
-        run: |
-          # Your deployment script
-```
-
-### Docker Support
-The system can be containerized for easy deployment:
-
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-EXPOSE 5000
-
-CMD ["python", "webhook_server.py"]
-```
-
-## 📚 API Reference
-
-### Webhook Server Endpoints
-
-- `POST /webhook/github`: Handle GitHub webhook events
-- `GET /webhook/status`: Get webhook processing statistics
-- `GET /health`: Health check endpoint
-- `POST /process/events`: Manually process unprocessed events
-- `POST /pull/latest`: Manually pull latest commits
-
-### CLI Commands
+## 🐳 Docker Commands
 
 ```bash
-# Monitor management
-python cli/manage_monitor.py start [--daemon] [--interval 30]
-python cli/manage_monitor.py stop
-python cli/manage_monitor.py status
-python cli/manage_monitor.py health
+# Start all services
+docker-compose up -d
 
-# Webhook management
-python cli/manage_monitor.py start-webhook-server
-python cli/manage_monitor.py webhook-status
+# Stop all services
+docker-compose down
 
-# Data viewing
-python cli/manage_monitor.py recent-commits [--limit 10]
-python cli/manage_monitor.py run-once
+# View logs
+docker-compose logs -f
+
+# Rebuild services
+docker-compose build
+
+# Check service status
+docker-compose ps
+```
+
+## 📁 Project Structure
+
+```
+MicroService/
+├── services/
+│   ├── commit-tracker/          # Handles commits
+│   │   ├── app.py              # Flask application
+│   │   ├── requirements.txt    # Dependencies
+│   │   └── README.md           # Service documentation
+│   ├── repo-manager/           # Handles repositories
+│   ├── webhook-handler/        # Handles GitHub webhooks
+│   └── ai-analyzer/            # Handles AI analysis
+├── shared/                     # Shared code
+│   ├── database.py            # Database connection
+│   └── config.py              # Configuration
+├── docker-compose.yml         # Orchestrates all services
+└── README.md                  # This file
+```
+
+## 🎓 Learning Benefits
+
+### Why Microservices?
+1. **Easy to Understand**: Each service has one job
+2. **Easy to Debug**: Problems are isolated
+3. **Easy to Scale**: Add more of what you need
+4. **Easy to Deploy**: Update one service at a time
+
+### What You'll Learn
+- ✅ **Service Communication**: How services talk to each other
+- ✅ **API Design**: How to design REST APIs
+- ✅ **Database Design**: How to structure data
+- ✅ **Containerization**: How to use Docker
+- ✅ **Orchestration**: How to manage multiple services
+
+## 🚨 Troubleshooting
+
+### Service Won't Start
+```bash
+# Check if port is already in use
+netstat -tulpn | grep :8001
+
+# Check Docker logs
+docker-compose logs commit-tracker
+```
+
+### Database Connection Issues
+```bash
+# Check if PostgreSQL is running
+docker-compose ps postgres
+
+# Check database logs
+docker-compose logs postgres
+```
+
+### AI Service Issues
+```bash
+# Check if Ollama is running
+curl http://localhost:11434/api/tags
+
+# Pull required models
+ollama pull codellama:7b
+ollama pull llama2:7b
 ```
 
 ## 🤝 Contributing
@@ -350,21 +293,20 @@ python cli/manage_monitor.py run-once
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests for new functionality
+4. Test your changes
 5. Submit a pull request
 
-## 📄 License
+## 📝 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is open source and available under the MIT License.
 
-## 🆘 Support
+## 🆘 Need Help?
 
-For issues and questions:
-1. Check the troubleshooting section
-2. Review the logs
-3. Open an issue on GitHub
-4. Check the documentation
+- Check the service-specific README files in each service directory
+- Look at the logs: `docker-compose logs -f`
+- Test individual endpoints to isolate issues
+- Make sure all required services are running
 
 ---
 
-**CraftNudge** - Transform your Git commits into actionable insights with AI-powered analysis and continuous monitoring.
+**Happy Coding! 🎉**

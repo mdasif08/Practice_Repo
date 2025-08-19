@@ -44,21 +44,51 @@ class DatabaseService:
     def _create_tables(self):
         """Create necessary tables if they don't exist."""
         with self.conn.cursor() as cursor:
-            # Commits table
+            # Repositories table (NEW - for better organization)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS repositories (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    owner VARCHAR(255) NOT NULL,
+                    full_name VARCHAR(500) UNIQUE NOT NULL,
+                    description TEXT,
+                    language VARCHAR(100),
+                    is_private BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Commits table (ENHANCED with repository_id)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS commits (
                     id SERIAL PRIMARY KEY,
-                    commit_hash VARCHAR(40) UNIQUE NOT NULL,
+                    commit_hash VARCHAR(40) NOT NULL,
+                    repository_id INTEGER REFERENCES repositories(id),
                     author VARCHAR(255) NOT NULL,
                     message TEXT NOT NULL,
                     timestamp_commit TIMESTAMP NOT NULL,
                     timestamp_logged TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     branch VARCHAR(255),
                     repository_path TEXT,
+                    repository_name TEXT,
                     changed_files JSONB,
-                    metadata JSONB
+                    metadata JSONB,
+                    UNIQUE(commit_hash, repository_id)
                 )
             """)
+            
+            # Add repository_id column if it doesn't exist (for backward compatibility)
+            cursor.execute("ALTER TABLE commits ADD COLUMN IF NOT EXISTS repository_id INTEGER REFERENCES repositories(id);")
+            
+            # Add repository_name column if it doesn't exist (for backward compatibility)
+            cursor.execute("ALTER TABLE commits ADD COLUMN IF NOT EXISTS repository_name TEXT;")
+            
+            # Add indexes for better performance
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_commits_repository_id ON commits(repository_id);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_commits_author ON commits(author);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_commits_timestamp ON commits(timestamp_commit);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_repositories_full_name ON repositories(full_name);")
             
             # Agent interactions table
             cursor.execute("""
@@ -108,25 +138,28 @@ class DatabaseService:
         try:
             with self.conn.cursor() as cursor:
                 cursor.execute("""
-                    INSERT INTO commits (commit_hash, author, message, timestamp_commit, 
-                                       branch, repository_path, changed_files, metadata)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (commit_hash) DO UPDATE SET
+                    INSERT INTO commits (commit_hash, repository_id, author, message, timestamp_commit, 
+                                       branch, repository_path, repository_name, changed_files, metadata)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (commit_hash, repository_id) DO UPDATE SET
                         author = EXCLUDED.author,
                         message = EXCLUDED.message,
                         timestamp_commit = EXCLUDED.timestamp_commit,
                         branch = EXCLUDED.branch,
                         repository_path = EXCLUDED.repository_path,
+                        repository_name = EXCLUDED.repository_name,
                         changed_files = EXCLUDED.changed_files,
                         metadata = EXCLUDED.metadata
                     RETURNING id
                 """, (
                     commit_data['commit_hash'],
+                    commit_data.get('repository_id'),
                     commit_data['author'],
                     commit_data['message'],
                     commit_data['timestamp_commit'],
                     commit_data.get('branch'),
                     commit_data.get('repository_path'),
+                    commit_data.get('repository_name'),
                     json.dumps(commit_data.get('changed_files', [])),
                     json.dumps(commit_data.get('metadata', {}))
                 ))
@@ -153,19 +186,128 @@ class DatabaseService:
         except Exception as e:
             raise DataStorageError(f"Failed to get commit: {str(e)}")
     
-    def get_recent_commits(self, limit: int = 10) -> List[Dict[str, Any]]:
-        """Get recent commits."""
+    def get_recent_commits(self, limit: int = 10, repository_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get recent commits with proper repository filtering."""
         try:
             with self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-                cursor.execute("""
-                    SELECT * FROM commits 
-                    ORDER BY timestamp_commit DESC 
-                    LIMIT %s
-                """, (limit,))
+                if repository_name:
+                    # Enhanced query to get commits for specific repository with proper isolation
+                    cursor.execute("""
+                        SELECT c.*, r.name as repo_name, r.owner as repo_owner, r.full_name as repo_full_name
+                        FROM commits c
+                        LEFT JOIN repositories r ON c.repository_id = r.id
+                        WHERE (r.name = %s AND r.name != 'Practice_Repo') OR 
+                              (c.repository_name = %s AND c.repository_name != 'Practice_Repo')
+                        ORDER BY c.timestamp_commit DESC 
+                        LIMIT %s
+                    """, (repository_name, repository_name, limit))
+                else:
+                    # Get all commits with repository info, excluding Practice_Repo unless specifically requested
+                    cursor.execute("""
+                        SELECT c.*, r.name as repo_name, r.owner as repo_owner, r.full_name as repo_full_name
+                        FROM commits c
+                        LEFT JOIN repositories r ON c.repository_id = r.id
+                        WHERE (r.name IS NULL OR r.name != 'Practice_Repo') OR 
+                              (c.repository_name IS NULL OR c.repository_name != 'Practice_Repo')
+                        ORDER BY c.timestamp_commit DESC 
+                        LIMIT %s
+                    """, (limit,))
                 
                 return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
             raise DataStorageError(f"Failed to get recent commits: {str(e)}")
+
+    def get_repository_commits(self, repo_owner: str, repo_name: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Get commits for a specific repository with proper isolation."""
+        try:
+            with self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                cursor.execute("""
+                    SELECT c.*, r.name as repo_name, r.owner as repo_owner, r.full_name as repo_full_name
+                    FROM commits c
+                    LEFT JOIN repositories r ON c.repository_id = r.id
+                    WHERE (r.owner = %s AND r.name = %s) OR 
+                          (c.repository_name = %s AND c.repository_name != 'Practice_Repo')
+                    ORDER BY c.timestamp_commit DESC 
+                    LIMIT %s
+                """, (repo_owner, repo_name, repo_name, limit))
+                
+                return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            raise DataStorageError(f"Failed to get repository commits: {str(e)}")
+
+    def migrate_commits_to_repositories(self) -> Dict[str, int]:
+        """Migrate existing commits to proper repository isolation."""
+        try:
+            with self.conn.cursor() as cursor:
+                # Get all unique repository names from commits (excluding Practice_Repo)
+                cursor.execute("""
+                    SELECT DISTINCT repository_name 
+                    FROM commits 
+                    WHERE repository_name IS NOT NULL 
+                    AND repository_name != 'Practice_Repo'
+                """)
+                
+                repo_names = [row[0] for row in cursor.fetchall()]
+                migrated_count = 0
+                
+                for repo_name in repo_names:
+                    # Create repository entry if it doesn't exist
+                    cursor.execute("""
+                        INSERT INTO repositories (name, owner, full_name, description, language, is_private)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (full_name) DO NOTHING
+                        RETURNING id
+                    """, (repo_name, 'mdasif08', f'mdasif08/{repo_name}', None, None, False))
+                    
+                    result = cursor.fetchone()
+                    if result:
+                        repo_id = result[0]
+                        
+                        # Update commits to use this repository_id
+                        cursor.execute("""
+                            UPDATE commits 
+                            SET repository_id = %s 
+                            WHERE repository_name = %s AND repository_id IS NULL
+                        """, (repo_id, repo_name))
+                        
+                        migrated_count += cursor.rowcount
+                
+                self.conn.commit()
+                return {
+                    'migrated_commits': migrated_count,
+                    'processed_repositories': len(repo_names)
+                }
+        except Exception as e:
+            self.conn.rollback()
+            raise DataStorageError(f"Failed to migrate commits: {str(e)}")
+
+    def ensure_repository_isolation(self, owner: str, repo_name: str) -> int:
+        """Ensure a repository is properly registered and isolated."""
+        try:
+            with self.conn.cursor() as cursor:
+                # Register repository if it doesn't exist
+                cursor.execute("""
+                    INSERT INTO repositories (name, owner, full_name, description, language, is_private)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (full_name) DO UPDATE SET
+                        updated_at = CURRENT_TIMESTAMP
+                    RETURNING id
+                """, (repo_name, owner, f"{owner}/{repo_name}", None, None, False))
+                
+                repo_id = cursor.fetchone()[0]
+                
+                # Update any existing commits to use this repository_id
+                cursor.execute("""
+                    UPDATE commits 
+                    SET repository_id = %s 
+                    WHERE repository_name = %s AND repository_id IS NULL
+                """, (repo_id, repo_name))
+                
+                self.conn.commit()
+                return repo_id
+        except Exception as e:
+            self.conn.rollback()
+            raise DataStorageError(f"Failed to ensure repository isolation: {str(e)}")
     
     def save_agent_interaction(self, commit_id: int, agent_type: str, 
                               interaction_type: str, input_data: Dict[str, Any], 
@@ -314,6 +456,49 @@ class DatabaseService:
                 }
         except Exception as e:
             raise DataStorageError(f"Failed to get statistics: {str(e)}")
+    
+    def get_repository_statistics(self) -> Dict[str, Any]:
+        """Get repository-specific statistics."""
+        try:
+            with self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                # Get commits by repository
+                cursor.execute("""
+                    SELECT repository_name, COUNT(*) as commit_count 
+                    FROM commits 
+                    WHERE repository_name IS NOT NULL 
+                    GROUP BY repository_name 
+                    ORDER BY commit_count DESC
+                """)
+                repo_stats = [dict(row) for row in cursor.fetchall()]
+                
+                # Get commits with NULL repository_name
+                cursor.execute("SELECT COUNT(*) as null_repo_count FROM commits WHERE repository_name IS NULL")
+                null_repo_count = cursor.fetchone()['null_repo_count']
+                
+                return {
+                    'repository_stats': repo_stats,
+                    'null_repository_count': null_repo_count,
+                    'total_repositories': len(repo_stats)
+                }
+        except Exception as e:
+            raise DataStorageError(f"Failed to get repository statistics: {str(e)}")
+    
+    def fix_null_repository_names(self, default_repo_name: str = "Practice_Repo") -> int:
+        """Fix commits with NULL repository_name by setting them to a default value."""
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE commits 
+                    SET repository_name = %s 
+                    WHERE repository_name IS NULL
+                """, (default_repo_name,))
+                
+                updated_count = cursor.rowcount
+                self.conn.commit()
+                return updated_count
+        except Exception as e:
+            self.conn.rollback()
+            raise DataStorageError(f"Failed to fix null repository names: {str(e)}")
     
     def close(self):
         """Close database connection."""

@@ -4,10 +4,18 @@ import App from './App.jsx'
 import ErrorBoundary from './ErrorBoundary.jsx'
 import './index.css'
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const rootElement = document.getElementById('root');
+
+if (!rootElement) {
+  throw new Error('Root element not found!');
+}
+
+const root = ReactDOM.createRoot(rootElement);
+
+root.render(
   <React.StrictMode>
     <ErrorBoundary>
       <App />
     </ErrorBoundary>
   </React.StrictMode>,
-)
+);

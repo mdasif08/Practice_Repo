@@ -1,0 +1,155 @@
+version: '3.8'
+
+services:
+  # Database
+  postgres:
+    image: postgres:13
+    container_name: microservice-postgres
+    environment:
+      POSTGRES_DB: newDB
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - microservice-network
+
+  # Ollama (AI Models)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: microservice-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - microservice-network
+
+  # Commit Tracker Service
+  commit-tracker:
+    build:
+      context: .
+      dockerfile: services/commit-tracker/Dockerfile
+    container_name: microservice-commit-tracker
+    ports:
+      - "8001:8001"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=newDB
+      - DB_USER=postgres
+      - DB_PASSWORD=root
+      - COMMIT_SERVICE_PORT=8001
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - LOG_LEVEL=INFO
+    depends_on:
+      - postgres
+    networks:
+      - microservice-network
+    restart: unless-stopped
+
+  # Repository Manager Service
+  repo-manager:
+    build:
+      context: .
+      dockerfile: services/repo-manager/Dockerfile
+    container_name: microservice-repo-manager
+    ports:
+      - "8002:8002"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=newDB
+      - DB_USER=postgres
+      - DB_PASSWORD=root
+      - REPO_SERVICE_PORT=8002
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - LOG_LEVEL=INFO
+    depends_on:
+      - postgres
+    networks:
+      - microservice-network
+    restart: unless-stopped
+
+  # Webhook Handler Service
+  webhook-handler:
+    build:
+      context: .
+      dockerfile: services/webhook-handler/Dockerfile
+    container_name: microservice-webhook-handler
+    ports:
+      - "8003:8003"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=newDB
+      - DB_USER=postgres
+      - DB_PASSWORD=root
+      - WEBHOOK_SERVICE_PORT=8003
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - LOG_LEVEL=INFO
+    depends_on:
+      - postgres
+    networks:
+      - microservice-network
+    restart: unless-stopped
+
+  # AI Analyzer Service
+  ai-analyzer:
+    build:
+      context: .
+      dockerfile: services/ai-analyzer/Dockerfile
+    container_name: microservice-ai-analyzer
+    ports:
+      - "8004:8004"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=newDB
+      - DB_USER=postgres
+      - DB_PASSWORD=root
+      - AI_SERVICE_PORT=8004
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - CODE_LLAMA_MODEL=codellama:7b
+      - OLLAMA_MODEL=llama2:7b
+      - LOG_LEVEL=INFO
+    depends_on:
+      - postgres
+      - ollama
+    networks:
+      - microservice-network
+    restart: unless-stopped
+
+  # API Gateway (Optional - for routing)
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: microservice-api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - GATEWAY_PORT=8000
+      - COMMIT_SERVICE_URL=http://commit-tracker:8001
+      - REPO_SERVICE_URL=http://repo-manager:8002
+      - WEBHOOK_SERVICE_URL=http://webhook-handler:8003
+      - AI_SERVICE_URL=http://ai-analyzer:8004
+      - LOG_LEVEL=INFO
+    depends_on:
+      - commit-tracker
+      - repo-manager
+      - webhook-handler
+      - ai-analyzer
+    networks:
+      - microservice-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  ollama_data:
+
+networks:
+  microservice-network:
+    driver: bridge
