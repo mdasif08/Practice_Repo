@@ -5,6 +5,7 @@ API Gateway - Routes requests to appropriate microservices
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 import logging
 from datetime import datetime
 import requests
@@ -16,12 +17,47 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Service URLs
 COMMIT_SERVICE_URL = os.getenv('COMMIT_SERVICE_URL', 'http://localhost:8001')
 REPO_SERVICE_URL = os.getenv('REPO_SERVICE_URL', 'http://localhost:8002')
 WEBHOOK_SERVICE_URL = os.getenv('WEBHOOK_SERVICE_URL', 'http://localhost:8003')
 AI_SERVICE_URL = os.getenv('AI_SERVICE_URL', 'http://localhost:8004')
+
+# WebSocket event handlers
+@socketio.on('connect')
+def handle_connect():
+    """Handle client connection."""
+    logger.info("Client connected to WebSocket")
+    emit('status', {'message': 'Connected to Microservice API Gateway'})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Handle client disconnection."""
+    logger.info("Client disconnected from WebSocket")
+
+@socketio.on('subscribe_commits')
+def handle_subscribe_commits():
+    """Handle commit subscription."""
+    logger.info("Client subscribed to commit updates")
+    emit('subscribed', {'message': 'Subscribed to commit updates'})
+
+def broadcast_new_commit(commit_data):
+    """Broadcast new commit to all connected clients."""
+    socketio.emit('new_commit', {
+        'type': 'new_commit',
+        'data': commit_data,
+        'timestamp': datetime.now().isoformat()
+    })
+
+def broadcast_ai_analysis(analysis_data):
+    """Broadcast AI analysis results to all connected clients."""
+    socketio.emit('ai_analysis', {
+        'type': 'ai_analysis',
+        'data': analysis_data,
+        'timestamp': datetime.now().isoformat()
+    })
 
 @app.route('/health', methods=['GET'])
 def health_check():

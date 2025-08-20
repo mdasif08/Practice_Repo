@@ -27,6 +27,20 @@ services:
     networks:
       - microservice-network
 
+  # Frontend (React App)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: microservice-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - microservice-network
+    restart: unless-stopped
+
   # Commit Tracker Service
   commit-tracker:
     build:

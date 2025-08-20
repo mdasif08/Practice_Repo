@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import io from 'socket.io-client';
 import './App.css';
 
-const API_BASE_URL = 'http://localhost:8000';
+// Use environment variable or default to localhost for development
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:8000';
 
 function App() {
   const [loading, setLoading] = useState(false);
@@ -10,11 +13,52 @@ function App() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [statistics, setStatistics] = useState(null);
+  const [socket, setSocket] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState({});
   const [formData, setFormData] = useState({
     owner: '',
     repo: '',
     max_commits: 10
   });
+
+  // WebSocket connection for real-time updates
+  useEffect(() => {
+    const newSocket = io(SOCKET_URL);
+    
+    newSocket.on('connect', () => {
+      console.log('Connected to WebSocket');
+      setIsConnected(true);
+      newSocket.emit('subscribe_commits');
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('Disconnected from WebSocket');
+      setIsConnected(false);
+    });
+
+    newSocket.on('new_commit', (data) => {
+      console.log('New commit received:', data);
+      setSuccess(`🆕 New commit detected: ${data.data.commit_hash}`);
+      // Refresh commits list
+      handleRefresh();
+    });
+
+    newSocket.on('ai_analysis', (data) => {
+      console.log('AI analysis received:', data);
+      setAiAnalysis(prev => ({
+        ...prev,
+        [data.data.commit_hash]: data.data.analysis
+      }));
+      setSuccess(`🤖 AI analysis completed for commit: ${data.data.commit_hash}`);
+    });
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.close();
+    };
+  }, []);
 
   const handleTrackNow = async () => {
     if (!formData.owner || !formData.repo) {
@@ -124,42 +168,55 @@ function App() {
       {/* Header */}
       <header className="header">
         <div className="container">
-          <h1>🚀 CraftNudge</h1>
-          <p>Track GitHub Commits with Microservices</p>
+          <h1>🚀 CraftNudge Microservice</h1>
+          <p>Git Commit Tracking & AI Analysis</p>
+          
+          {/* WebSocket Status */}
+          <div className={`websocket-status ${isConnected ? 'connected' : 'disconnected'}`}>
+            {isConnected ? '🔗 Real-time Connected' : '❌ Real-time Disconnected'}
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="main">
         <div className="container">
-          {/* Form Section */}
+          {/* Repository Form */}
           <div className="form-section">
             <div className="form-card">
-              <h2>📊 Track Repository</h2>
+              <h2>📋 Repository Information</h2>
               <div className="form-row">
-                <input
-                  type="text"
-                  placeholder="Repository Owner (e.g., mdasif08)"
-                  value={formData.owner}
-                  onChange={(e) => setFormData({...formData, owner: e.target.value})}
-                  className="form-input"
-                />
-                <input
-                  type="text"
-                  placeholder="Repository Name (e.g., practice_repo)"
-                  value={formData.repo}
-                  onChange={(e) => setFormData({...formData, repo: e.target.value})}
-                  className="form-input"
-                />
-                <input
-                  type="number"
-                  placeholder="Max Commits (default: 10)"
-                  value={formData.max_commits}
-                  onChange={(e) => setFormData({...formData, max_commits: parseInt(e.target.value) || 10})}
-                  className="form-input"
-                  min="1"
-                  max="100"
-                />
+                <div className="form-group">
+                  <label>Repository Owner:</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., mdasif08"
+                    value={formData.owner}
+                    onChange={(e) => setFormData({...formData, owner: e.target.value})}
+                    className="form-input"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Repository Name:</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., my-app"
+                    value={formData.repo}
+                    onChange={(e) => setFormData({...formData, repo: e.target.value})}
+                    className="form-input"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Max Commits:</label>
+                  <input
+                    type="number"
+                    value={formData.max_commits}
+                    onChange={(e) => setFormData({...formData, max_commits: parseInt(e.target.value) || 10})}
+                    className="form-input"
+                    min="1"
+                    max="100"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -201,6 +258,23 @@ function App() {
             </div>
           )}
 
+          {/* AI Analysis Display */}
+          {Object.keys(aiAnalysis).length > 0 && (
+            <div className="ai-analysis-section">
+              <div className="ai-analysis-card">
+                <h2>🤖 AI Analysis Results</h2>
+                {Object.entries(aiAnalysis).map(([commitHash, analysis]) => (
+                  <div key={commitHash} className="analysis-item">
+                    <h3>Commit: {commitHash.substring(0, 8)}...</h3>
+                    <div className="analysis-content">
+                      <pre>{analysis}</pre>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Commits Display */}
           {commits.length > 0 && (
             <div className="commits-section">
@@ -225,6 +299,15 @@ function App() {
                                   {file.file_name} ({file.change_type})
                                 </span>
                               ))}
+                            </div>
+                          </div>
+                        )}
+                        {/* AI Analysis for this commit */}
+                        {aiAnalysis[commit.commit_id] && (
+                          <div className="commit-ai-analysis">
+                            <p><strong>🤖 AI Analysis:</strong></p>
+                            <div className="ai-content">
+                              <pre>{aiAnalysis[commit.commit_id]}</pre>
                             </div>
                           </div>
                         )}

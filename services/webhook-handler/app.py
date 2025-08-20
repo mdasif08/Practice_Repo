@@ -171,10 +171,18 @@ def process_push_event(data):
             
             db_service.save_commit(commit_obj)
             processed_commits.append(commit_obj)
+            
+            # 🔥 AUTOMATIC AI ANALYSIS TRIGGER
+            try:
+                logger.info(f"🤖 Triggering AI analysis for commit: {commit['id']}")
+                ai_analysis_result = trigger_ai_analysis(commit['id'], repo_name)
+                logger.info(f"✅ AI analysis completed for commit: {commit['id']}")
+            except Exception as ai_error:
+                logger.error(f"❌ AI analysis failed for commit {commit['id']}: {str(ai_error)}")
         
         return jsonify({
             'success': True,
-            'message': f'Processed {len(processed_commits)} commits',
+            'message': f'Processed {len(processed_commits)} commits with AI analysis',
             'repository': f"{repo_owner}/{repo_name}",
             'commits_processed': len(processed_commits)
         })
@@ -266,6 +274,27 @@ def get_webhook_events():
     except Exception as e:
         logger.error(f"Error getting webhook events: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+def trigger_ai_analysis(commit_hash, repository_name):
+    """Trigger AI analysis for a commit."""
+    try:
+        # Call AI Analyzer service
+        ai_service_url = f"http://ai-analyzer:8004/analyze/commit/{commit_hash}"
+        
+        response = requests.post(ai_service_url, json={
+            'commit_hash': commit_hash,
+            'repository_name': repository_name
+        }, timeout=30)
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            logger.error(f"AI service returned status {response.status_code}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Failed to trigger AI analysis: {str(e)}")
+        return None
 
 if __name__ == '__main__':
     logger.info(f"🚀 Starting Webhook Handler Service on port {config.WEBHOOK_SERVICE_PORT}")
